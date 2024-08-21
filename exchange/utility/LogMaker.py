@@ -14,6 +14,7 @@ logger.add(
     rotation="1 days",
     retention="7 days",
     format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+    encoding="utf-8"  # 한글 깨짐 방지
 )
 logger.add(
     sys.stderr,
@@ -61,11 +62,10 @@ def log_message(message="None", embed: Embed = None):
         if embed:
             hook.send(embed=embed)
         else:
-            hook.send(message)
-        # hook.send(str(message), embed)
+            hook.send(message.encode("utf-8").decode("utf-8"))
     else:
-        logger.info(message)
-        print(message)
+        logger.info(message.encode("utf-8").decode("utf-8"))
+        print(message.encode("utf-8").decode("utf-8"))
 
 
 def log_order_message(exchange_name, order_result: dict, order_info: MarketOrder):
