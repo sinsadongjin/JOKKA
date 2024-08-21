@@ -1,3 +1,5 @@
+# log_and_notify.py
+
 import sys
 from exchange.model import MarketOrder, COST_BASED_ORDER_EXCHANGES, STOCK_EXCHANGES
 from exchange.utility import settings
@@ -8,6 +10,7 @@ from devtools import debug, pformat
 import traceback
 import os
 
+# 로그 설정: 파일 및 콘솔 출력
 logger.remove(0)
 logger.add(
     "./log/poa.log",
@@ -18,24 +21,25 @@ logger.add(
 )
 logger.add(
     sys.stderr,
-    colorize=True,
+    colorize=True,  # 콘솔 출력 색상 활성화
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level}</level> | <level>{message}</level>",
 )
 
+# 웹훅 URL 설정
 try:
     url = settings.DISCORD_WEBHOOK_URL.replace("discordapp", "discord")
     hook = Webhook(url)
 except Exception as e:
     print("웹훅 URL이 유효하지 않습니다: ", settings.DISCORD_WEBHOOK_URL)
 
-
+# 에러 메시지 생성 함수
 def get_error(e):
     tb = traceback.extract_tb(e.__traceback__)
     target_folder = os.path.abspath(os.path.dirname(tb[0].filename))
     error_msg = []
 
     for tb_info in tb:
-        # if target_folder in tb_info.filename:
+        # 에러 발생 위치와 메시지 추출
         error_msg.append(f"File {tb_info.filename}, line {tb_info.lineno}, in {tb_info.name}")
         if "raise error." in tb_info.line:
             continue
@@ -45,18 +49,18 @@ def get_error(e):
 
     return "\n".join(error_msg)
 
-
+# UTC 타임스탬프를 한국 시간으로 변환하는 함수
 def parse_time(utc_timestamp):
     timestamp = utc_timestamp + timedelta(hours=9).seconds
     date = datetime.fromtimestamp(timestamp)
     return date.strftime("%y-%m-%d %H:%M:%S")
 
-
+# 로그 테스트 함수
 def logger_test():
     date = parse_time(datetime.utcnow().timestamp())
     logger.info(date)
 
-
+# 메시지를 로그로 기록하고 웹훅으로 전송하는 함수
 def log_message(message="None", embed: Embed = None):
     if hook:
         if embed:
@@ -67,7 +71,7 @@ def log_message(message="None", embed: Embed = None):
         logger.info(message.encode("utf-8").decode("utf-8"))
         print(message.encode("utf-8").decode("utf-8"))
 
-
+# 주문 관련 로그를 기록하는 함수
 def log_order_message(exchange_name, order_result: dict, order_info: MarketOrder):
     date = parse_time(datetime.utcnow().timestamp())
     if not order_info.is_futures and order_info.is_buy and exchange_name in COST_BASED_ORDER_EXCHANGES:
@@ -178,7 +182,7 @@ def log_order_message(exchange_name, order_result: dict, order_info: MarketOrder
             embed.add_field(name="체결가", value=str(order_result.get("price")), inline=False)
         log_message(content, embed)
 
-
+# 헷지 관련 로그를 기록하는 함수
 def log_hedge_message(exchange, base, quote, exchange_amount, upbit_amount, hedge):
     date = parse_time(datetime.utcnow().timestamp())
     hedge_type = "헷지" if hedge == "ON" else "헷지 종료"
@@ -195,13 +199,13 @@ def log_hedge_message(exchange, base, quote, exchange_amount, upbit_amount, hedg
     )
     log_message(content, embed)
 
-
+# 일반적인 에러 로그를 기록하는 함수
 def log_error_message(error, name):
     embed = Embed(title=f"{name} 에러", description=f"[{name} 에러가 발생했습니다]\n{error}", color=0xFFC0CB)
     logger.error(f"{name} [에러가 발생했습니다]\n{error}")
     log_message(embed=embed)
 
-
+# 주문 관련 에러 로그를 기록하는 함수
 def log_order_error_message(error: str | Exception, order_info: MarketOrder):
     if isinstance(error, Exception):
         error = get_error(error)
@@ -229,12 +233,12 @@ def log_order_error_message(error: str | Exception, order_info: MarketOrder):
         # logger
         logger.error(f"[오류가 발생했습니다]\n{error}")
 
-
+# 검증 관련 에러 로그를 기록하는 함수
 def log_validation_error_message(msg):
     logger.error(f"검증 오류가 발생했습니다\n{msg}")
     log_message(msg)
 
-
+# 경고 메시지 출력 함수
 def print_alert_message(order_info: MarketOrder, result="성공"):
     msg = pformat(order_info.dict(exclude_none=True))
 
@@ -243,7 +247,7 @@ def print_alert_message(order_info: MarketOrder, result="성공"):
     else:
         logger.error(f"주문 {result} 웹훅메세지\n{msg}")
 
-
+# 경고 메시지를 로그로 기록하는 함수
 def log_alert_message(order_info: MarketOrder, result="성공"):
     # discrod
     embed = Embed(
