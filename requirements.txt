@@ -7,7 +7,7 @@ fire==0.6.0
 httpx==0.23.3
 loguru==0.7.0
 pocketbase==0.8.2
-pydantic[dotenv]==2.8.2
+pydantic[dotenv]==1.10.10
 devtools[pygments]==0.11.0
 orjson==3.9.1
 pendulum==3.0.0
