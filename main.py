@@ -27,7 +27,7 @@ import os
 import sys
 from devtools import debug
 
-VERSION = "24.08.21"
+VERSION = "0.1.4"
 app = FastAPI(default_response_class=ORJSONResponse)
 
 
@@ -38,7 +38,9 @@ def get_error(e):
 
     for tb_info in tb:
         # if target_folder in tb_info.filename:
-        error_msg.append(f"File {tb_info.filename}, line {tb_info.lineno}, in {tb_info.name}")
+        error_msg.append(
+            f"File {tb_info.filename}, line {tb_info.lineno}, in {tb_info.name}"
+        )
         error_msg.append(f"  {tb_info.line}")
 
     error_msg.append(str(e))
@@ -48,7 +50,7 @@ def get_error(e):
 
 @app.on_event("startup")
 async def startup():
-    log_message(f"```ansi\nJIN GU BOT 실행 완료!\n- 버전 :[2;45m {VERSION} [0m\n```")
+    log_message(f"POABOT 실행 완료! - 버전:{VERSION}")
 
 
 @app.on_event("shutdown")
@@ -56,7 +58,13 @@ async def shutdown():
     db.close()
 
 
-whitelist = ["52.89.214.238", "34.212.75.30", "54.218.53.128", "52.32.178.7", "127.0.0.1"]
+whitelist = [
+    "52.89.214.238",
+    "34.212.75.30",
+    "54.218.53.128",
+    "52.32.178.7",
+    "127.0.0.1",
+]
 whitelist = whitelist + settings.WHITELIST
 
 
@@ -72,10 +80,16 @@ whitelist = whitelist + settings.WHITELIST
 @app.middleware("http")
 async def whitelist_middleware(request: Request, call_next):
     try:
-        if request.client.host not in whitelist and not ipaddress.ip_address(request.client.host).is_private:
+        if (
+            request.client.host not in whitelist
+            and not ipaddress.ip_address(request.client.host).is_private
+        ):
             msg = f"{request.client.host}는 안됩니다"
             print(msg)
-            return ORJSONResponse(status_code=status.HTTP_403_FORBIDDEN, content=f"{request.client.host}는 허용되지 않습니다")
+            return ORJSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content=f"{request.client.host}는 허용되지 않습니다",
+            )
     except:
         log_error_message(traceback.format_exc(), "미들웨어 에러")
     else:
@@ -85,7 +99,10 @@ async def whitelist_middleware(request: Request, call_next):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
-    msgs = [f"[에러{index+1}] " + f"{error.get('msg')} \n{error.get('loc')}" for index, error in enumerate(exc.errors())]
+    msgs = [
+        f"[에러{index+1}] " + f"{error.get('msg')} \n{error.get('loc')}"
+        for index, error in enumerate(exc.errors())
+    ]
     message = "[Error]\n"
     for msg in msgs:
         message = message + msg + "\n"
@@ -108,7 +125,9 @@ async def welcome():
 @app.post("/price")
 async def price(price_req: PriceRequest, background_tasks: BackgroundTasks):
     exchange = get_exchange(price_req.exchange)
-    price = exchange.dict()[price_req.exchange].fetch_price(price_req.base, price_req.quote)
+    price = exchange.dict()[price_req.exchange].fetch_price(
+        price_req.base, price_req.quote
+    )
     return price
 
 
@@ -153,7 +172,9 @@ async def order(order_info: MarketOrder, background_tasks: BackgroundTasks):
 
     except TypeError as e:
         error_msg = get_error(e)
-        background_tasks.add_task(log_order_error_message, "\n".join(error_msg), order_info)
+        background_tasks.add_task(
+            log_order_error_message, "\n".join(error_msg), order_info
+        )
 
     except Exception as e:
         error_msg = get_error(e)
@@ -214,7 +235,15 @@ async def hedge(hedge_data: HedgeData, background_tasks: BackgroundTasks):
                 raise Exception("헷지할 수량을 요청하세요")
             binance_order_result = bot.market_entry(foreign_order_info)
             binance_order_amount = binance_order_result["amount"]
-            pocket.create("kimp", {"exchange": "BINANCE", "base": base, "quote": quote, "amount": binance_order_amount})
+            pocket.create(
+                "kimp",
+                {
+                    "exchange": "BINANCE",
+                    "base": base,
+                    "quote": quote,
+                    "amount": binance_order_amount,
+                },
+            )
             if leverage is None:
                 leverage = 1
             try:
@@ -234,28 +263,53 @@ async def hedge(hedge_data: HedgeData, background_tasks: BackgroundTasks):
                 binance_amount = hedge_records["BINANCE"]["amount"]
                 binance_order_result = bot.market_close(
                     OrderRequest(
-                        exchange=exchange_name, base=base, quote=quote, side="close/buy", amount=binance_amount
+                        exchange=exchange_name,
+                        base=base,
+                        quote=quote,
+                        side="close/buy",
+                        amount=binance_amount,
                     )
                 )
                 for binance_record_id in binance_records_id:
                     pocket.delete("kimp", binance_record_id)
-                log_message("[헷지 실패] 업비트에서 에러가 발생하여 바이낸스 포지션을 종료합니다")
+                log_message(
+                    "[헷지 실패] 업비트에서 에러가 발생하여 바이낸스 포지션을 종료합니다"
+                )
             else:
                 upbit_order_info = upbit.get_order(upbit_order_result["id"])
                 upbit_order_amount = upbit_order_info["filled"]
-                pocket.create("kimp", {"exchange": "UPBIT", "base": base, "quote": "KRW", "amount": upbit_order_amount})
-                log_hedge_message(exchange_name, base, quote, binance_order_amount, upbit_order_amount, hedge)
+                pocket.create(
+                    "kimp",
+                    {
+                        "exchange": "UPBIT",
+                        "base": base,
+                        "quote": "KRW",
+                        "amount": upbit_order_amount,
+                    },
+                )
+                log_hedge_message(
+                    exchange_name,
+                    base,
+                    quote,
+                    binance_order_amount,
+                    upbit_order_amount,
+                    hedge,
+                )
 
         except Exception as e:
             # log_message(f"{e}")
-            background_tasks.add_task(log_error_message, traceback.format_exc(), "헷지 에러")
+            background_tasks.add_task(
+                log_error_message, traceback.format_exc(), "헷지 에러"
+            )
             return {"result": "error"}
         else:
             return {"result": "success"}
 
     elif hedge == "OFF":
         try:
-            records = pocket.get_full_list("kimp", query_params={"filter": f'base = "{base}"'})
+            records = pocket.get_full_list(
+                "kimp", query_params={"filter": f'base = "{base}"'}
+            )
             binance_amount = 0.0
             binance_records_id = []
             upbit_amount = 0.0
@@ -271,18 +325,30 @@ async def hedge(hedge_data: HedgeData, background_tasks: BackgroundTasks):
             if binance_amount > 0 and upbit_amount > 0:
                 # 바이낸스
                 order_info = OrderRequest(
-                    exchange="BINANCE", base=base, quote=quote, side="close/buy", amount=binance_amount
+                    exchange="BINANCE",
+                    base=base,
+                    quote=quote,
+                    side="close/buy",
+                    amount=binance_amount,
                 )
                 binance_order_result = bot.market_close(order_info)
                 for binance_record_id in binance_records_id:
                     pocket.delete("kimp", binance_record_id)
                 # 업비트
-                order_info = OrderRequest(exchange="UPBIT", base=base, quote="KRW", side="sell", amount=upbit_amount)
+                order_info = OrderRequest(
+                    exchange="UPBIT",
+                    base=base,
+                    quote="KRW",
+                    side="sell",
+                    amount=upbit_amount,
+                )
                 upbit_order_result = upbit.market_sell(order_info)
                 for upbit_record_id in upbit_records_id:
                     pocket.delete("kimp", upbit_record_id)
 
-                log_hedge_message(exchange_name, base, quote, binance_amount, upbit_amount, hedge)
+                log_hedge_message(
+                    exchange_name, base, quote, binance_amount, upbit_amount, hedge
+                )
             elif binance_amount == 0 and upbit_amount == 0:
                 log_message(f"{exchange_name}, UPBIT에 종료할 수량이 없습니다")
             elif binance_amount == 0:
@@ -290,7 +356,9 @@ async def hedge(hedge_data: HedgeData, background_tasks: BackgroundTasks):
             elif upbit_amount == 0:
                 log_message("UPBIT에 종료할 수량이 없습니다")
         except Exception as e:
-            background_tasks.add_task(log_error_message, traceback.format_exc(), "헷지종료 에러")
+            background_tasks.add_task(
+                log_error_message, traceback.format_exc(), "헷지종료 에러"
+            )
             return {"result": "error"}
         else:
             return {"result": "success"}

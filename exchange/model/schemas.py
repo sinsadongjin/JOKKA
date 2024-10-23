@@ -1,5 +1,4 @@
-from pydantic_settings import BaseSettings
-from pydantic import BaseModel, validator, root_validator
+from pydantic import BaseModel, BaseSettings, validator, root_validator
 from typing import Literal
 import os
 from pathlib import Path
@@ -29,9 +28,13 @@ EXCHANGE_LITERAL = Literal[
     "AMEX",
 ]
 
-QUOTE_LITERAL = Literal["USDT", "USDT.P", "USDTPERP", "BUSD", "BUSD.P", "BUSDPERP", "KRW", "USD", "USD.P"]
+QUOTE_LITERAL = Literal[
+    "USDT", "USDT.P", "USDTPERP", "BUSD", "BUSD.P", "BUSDPERP", "KRW", "USD", "USD.P"
+]
 
-SIDE_LITERAL = Literal["buy", "sell", "entry/buy", "entry/sell", "close/buy", "close/sell"]
+SIDE_LITERAL = Literal[
+    "buy", "sell", "entry/buy", "entry/sell", "close/buy", "close/sell"
+]
 
 
 def find_env_file():
@@ -208,6 +211,7 @@ class OrderRequest(BaseModel):
     is_close: bool | None = None
     is_buy: bool | None = None
     is_sell: bool | None = None
+    is_total: bool | None = None
     is_contract: bool | None = None
     contract_size: float | None = None
     margin_mode: str | None = None
