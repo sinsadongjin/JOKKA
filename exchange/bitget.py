@@ -217,16 +217,18 @@ class Bitget:
 
     def market_close(self, order_info: MarketOrder):
         from exchange.pexchange import retry
-
-        symbol = self.order_info.unified_symbol
-        close_amount = self.get_amount(order_info)
+    
+        symbol = order_info.unified_symbol
+        close_amount = self.get_amount(order_info)  # 청산하려는 수량 계산
+        
+        # 보유 포지션 수량 확인
+        current_position = self.get_futures_position(symbol)
+        
+        # 청산하려는 수량이 보유 수량의 65%가 넘으면 보유 수량 전체로 설정
+        if close_amount >= current_position * 0.65:
+            close_amount = current_position
+    
         final_side = order_info.side
-
-        # 보유 수량의 65% 이상일 때 전부 청산
-        position_amount = self.get_position_amount(order_info)  # 보유 수량 불러오기
-        if close_amount >= position_amount * 0.65:
-            close_amount = position_amount
-
         if self.position_mode == "one-way":
             params = {"reduceOnly": True, "oneWayMode": True}
         elif self.position_mode == "hedge":
@@ -235,14 +237,14 @@ class Bitget:
             elif order_info.side == "buy":
                 final_side = "sell"
             params = {"reduceOnly": True, "tradeSide": "close"}
-
+        
         try:
             result = retry(
                 self.client.create_order,
                 symbol,
                 order_info.type.lower(),
                 final_side,
-                abs(close_amount),
+                abs(close_amount),  # 최종 결정된 수량
                 None,
                 params,
                 order_info=order_info,
@@ -250,7 +252,7 @@ class Bitget:
                 delay=0.1,
                 instance=self,
             )
-
+    
             return result
         except Exception as e:
-            raise error.OrderError(e, self.order_info)
+            raise error.OrderError(e, order_info)
