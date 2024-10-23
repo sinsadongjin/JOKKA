@@ -11,4 +11,3 @@ pydantic[dotenv]==1.10.10
 devtools[pygments]==0.11.0
 orjson==3.9.1
 pendulum==3.0.0
-pydantic-settings==2.3.4
