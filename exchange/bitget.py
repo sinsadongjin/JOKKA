@@ -125,24 +125,8 @@ class Bitget:
         return result
 
     def set_leverage(self, leverage, symbol):
-        if self.order_info.is_buy:
-            hold_side = "long"
-        elif self.order_info.is_sell:
-            hold_side = "short"
-        market = self.client.market(symbol)
-        request = {
-            "symbol": market["id"],
-            "marginCoin": market["settleId"],
-            "leverage": leverage,
-            # 'holdSide': 'long' or 'short',
-        }
-
-        account = self.client.privateMixGetAccountAccount(
-            {"symbol": market["id"], "marginCoin": market["settleId"]}
-        )
-        if account["data"]["marginMode"] == "fixed":
-            request |= {"holdSide": hold_side}
-        return self.client.privateMixPostAccountSetLeverage(request)
+        if self.order_info.is_futures:
+            return self.client.set_leverage(leverage, symbol)
 
     def market_order(self, order_info: MarketOrder):
         from exchange.pexchange import retry
@@ -220,13 +204,16 @@ class Bitget:
     
         symbol = order_info.unified_symbol
         close_amount = self.get_amount(order_info)  # 청산하려는 수량 계산
-        
-        # 보유 포지션 수량 확인
+    
+        # 보유 포지션 수량 및 방향 확인
         current_position = self.get_futures_position(symbol)
         
+        if current_position == 0:
+            raise ValueError("현재 보유 중인 포지션이 없습니다.")
+    
         # 청산하려는 수량이 보유 수량의 65%가 넘으면 보유 수량 전체로 설정
-        if close_amount >= current_position * 0.65:
-            close_amount = current_position
+        if close_amount >= abs(current_position) * 0.65:
+            close_amount = abs(current_position)
     
         final_side = order_info.side
         if self.position_mode == "one-way":
@@ -236,8 +223,8 @@ class Bitget:
                 final_side = "buy"
             elif order_info.side == "buy":
                 final_side = "sell"
-            params = {"reduceOnly": True, "tradeSide": "close"}
-        
+            params = {"reduceOnly": True}
+    
         try:
             result = retry(
                 self.client.create_order,
