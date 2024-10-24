@@ -219,10 +219,10 @@ class Bitget:
         if self.position_mode == "one-way":
             params = {"reduceOnly": True, "oneWayMode": True}
         elif self.position_mode == "hedge":
-            if order_info.side == "sell":
-                final_side = "buy"
-            elif order_info.side == "buy":
+            if current_position > 0:  # 롱 포지션일 경우
                 final_side = "sell"
+            elif current_position < 0:  # 숏 포지션일 경우
+                final_side = "buy"
             params = {"reduceOnly": True}
     
         try:
