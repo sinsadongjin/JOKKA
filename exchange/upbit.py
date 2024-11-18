@@ -10,6 +10,7 @@ class Upbit:
             {
                 "apiKey": key,
                 "secret": secret,
+                "enableRateLimit": True,  # 요청 속도 제한
             }
         )
         self.client.load_markets()
@@ -82,11 +83,17 @@ class Upbit:
 
     def market_buy(self, order_info: MarketOrder):
         from exchange.pexchange import retry
-
+    
+        MAX_TOTAL_COST = 1_100_300  # 최대 주문 금액
         # 비용주문
         buy_amount = self.get_amount(order_info)
-        order_info.amount = buy_amount
         order_info.price = self.get_price(order_info.unified_symbol)
+        total_cost = buy_amount * order_info.price
+        # 주문 금액이 MAX_TOTAL_COST를 초과하는 경우 수량 조정
+        if total_cost > MAX_TOTAL_COST:
+            order_info.amount = round(MAX_TOTAL_COST / order_info.price, 3)
+        else:
+            order_info.amount = buy_amount
         return self.market_order(order_info)
 
     def market_sell(self, order_info: MarketOrder):

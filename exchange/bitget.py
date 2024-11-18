@@ -17,7 +17,7 @@ class Bitget:
         )
         self.client.load_markets()
         self.order_info: MarketOrder = None
-        self.position_mode = "hedge"
+        self.position_mode = "one-way"
 
     def init_info(self, order_info: MarketOrder):
         self.order_info = order_info
@@ -125,8 +125,9 @@ class Bitget:
         return result
 
     def set_leverage(self, leverage, symbol):
-        if self.order_info.is_futures:
-            return self.client.set_leverage(leverage, symbol)
+        
+        hold_side = "long" if self.order_info.is_buy else "short"
+        return self.client.set_leverage(leverage, symbol, params= { "holdSide": hold_side })
 
     def market_order(self, order_info: MarketOrder):
         from exchange.pexchange import retry
@@ -162,7 +163,7 @@ class Bitget:
         sell_amount = self.get_amount(order_info)
         order_info.amount = sell_amount
         return self.market_order(order_info)
-
+            
     def market_entry(self, order_info: MarketOrder):
         from exchange.pexchange import retry
 
@@ -170,6 +171,10 @@ class Bitget:
         entry_amount = self.get_amount(order_info)
         if entry_amount == 0:
             raise error.MinAmountError()
+
+        # order 전 마진모드를 cross로 확정
+        self.client.set_margin_mode("cross", symbol)            
+                
         if self.position_mode == "one-way":
             params = { "oneWayMode": True }
         elif self.position_mode == "hedge":
@@ -179,8 +184,13 @@ class Bitget:
                 else:
                     trade_side = "open"
                 params = { "tradeSide": trade_side }
+                
+        params |= { "marginMode": order_info.margin_mode or "cross" }
+        if order_info.margin_mode is not None:
+            self.client.set_margin_mode(order_info.margin_mode, symbol)
+
         if order_info.leverage is not None:
-            self.set_leverage(order_info.leverage, symbol)
+            retry(self.set_leverage, order_info.leverage, symbol, order_info = order_info, instance = self)
         try:
             return retry(
                 self.client.create_order,
@@ -197,13 +207,13 @@ class Bitget:
             )
 
         except Exception as e:
-            raise error.OrderError(e, order_info)
-
+            raise error.OrderError(e, order_info)        
+            
     def market_close(self, order_info: MarketOrder):
         from exchange.pexchange import retry
     
         symbol = order_info.unified_symbol
-        close_amount = self.get_amount(order_info)  # 청산하려는 수량 계산
+        close_amount = self.get_amount(order_info)  # 청산물량 수량
     
         # 보유 포지션 수량 및 방향 확인
         current_position = self.get_futures_position(symbol)
@@ -211,19 +221,19 @@ class Bitget:
         if current_position == 0:
             raise ValueError("현재 보유 중인 포지션이 없습니다.")
     
-        # 청산하려는 수량이 보유 수량의 65%가 넘으면 보유 수량 전체로 설정
-        if close_amount >= abs(current_position) * 0.65:
+        # 청산하려는 수량이 보유 수량의 70%를 초과하면 보유 수량 전체로 주문
+        if close_amount >= abs(current_position) * 0.70:
             close_amount = abs(current_position)
     
         final_side = order_info.side
         if self.position_mode == "one-way":
             params = {"reduceOnly": True, "oneWayMode": True}
         elif self.position_mode == "hedge":
-            if current_position > 0:  # 롱 포지션일 경우
+            if current_position > 0:      # 롱 포지션
                 final_side = "sell"
-            elif current_position < 0:  # 숏 포지션일 경우
+            elif current_position < 0:    # 숏 포지션
                 final_side = "buy"
-            params = {"reduceOnly": True}
+            params = {"reduceOnly": True, "tradeSide":"close"}
     
         try:
             result = retry(
@@ -231,7 +241,7 @@ class Bitget:
                 symbol,
                 order_info.type.lower(),
                 final_side,
-                abs(close_amount),  # 최종 결정된 수량
+                abs(close_amount),        # 최종 결정된 수량
                 None,
                 params,
                 order_info=order_info,
