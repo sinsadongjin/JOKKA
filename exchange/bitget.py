@@ -13,6 +13,7 @@ class Bitget:
                 "apiKey": key,
                 "secret": secret,
                 "password": passphrase,
+                "enableRateLimit": True,  # 요청 속도 제한
             }
         )
         self.client.load_markets()
