@@ -84,9 +84,9 @@ class Upbit:
     def market_buy(self, order_info: MarketOrder):
         from exchange.pexchange import retry
         # 기준 금액 설정
-        BASE_COST = 1_005_110               # 기준 금액
-        MAX_TOTAL_COST = BASE_COST * 1.10   # 최대 주문 금액 + 10%
-        MIN_TOTAL_COST = BASE_COST * 0.70   # 최소 주문 금액 - 30%
+        BASE_COST = 1_051_110               # 기준 금액
+        MAX_TOTAL_COST = BASE_COST * 1.30   # 최대 주문 금액 + 10%
+        MIN_TOTAL_COST = BASE_COST * 0.60   # 최소 주문 금액 - 40%
         # 수량 주문
         buy_amount = self.get_amount(order_info)
         order_info.price = self.get_price(order_info.unified_symbol)

@@ -4,7 +4,8 @@ from exchange.database import db
 from exchange.model import MarketOrder
 import exchange.error as error
 from devtools import debug
-
+import time
+import random
 
 class Bitget:
     def __init__(self, key, secret, passphrase=None):
@@ -174,7 +175,8 @@ class Bitget:
             raise error.MinAmountError()
 
         # order 전 마진모드를 cross로 확정
-        self.client.set_margin_mode("cross", symbol)            
+        self.client.set_margin_mode("cross", symbol)
+        time.sleep(random.uniform(0, 2))  # 0~2초 랜덤 딜레이
                 
         if self.position_mode == "one-way":
             params = { "oneWayMode": True }
@@ -217,6 +219,7 @@ class Bitget:
         close_amount = self.get_amount(order_info)  # 청산물량 수량
     
         # 보유 포지션 수량 및 방향 확인
+        time.sleep(random.uniform(0, 2))  # 0~2초 랜덤 딜레이
         current_position = self.get_futures_position(symbol)
         
         if current_position == 0:
